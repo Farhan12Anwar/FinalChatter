@@ -24,16 +24,33 @@ app.use(express.static("public"));
 io.on("connection", (socket) => {
   console.log("A user connected");
 
-  // Broadcast chat message to all connected clients
-  socket.on("chat message", (msg) => {
-    io.emit("chat message", msg);
+  socket.on("join room", (data) => {
+    const { room, username } = data; // Destructure room and username
+    console.log(`User ${username} joined room: ${room}`); // Debugging log
+    socket.join(room); // Ensure user joins the correct room
   });
 
-  // Handle disconnection
+  socket.on("create room", (newRoom, creator) => {
+    if (!io.sockets.adapter.rooms[newRoom]) {
+      io.sockets.adapter.rooms[newRoom] = { users: {} }; // Create the room
+      socket.emit("room created", newRoom); // Notify the creator
+      socket.join(newRoom); // Add the creator to the room
+      io.emit("rooms list", Object.keys(io.sockets.adapter.rooms)); // Emit available rooms to everyone
+    } else {
+      socket.emit("room exists", newRoom); // Notify if room already exists
+    }
+  });
+
+  socket.on("chat message", (msg) => {
+    io.to(msg.room).emit("chat message", msg); // Broadcast messages to the room
+  });
+
   socket.on("disconnect", () => {
     console.log("A user disconnected");
   });
 });
+
+//////////////////////////////
 
 mongoose
   .connect(
