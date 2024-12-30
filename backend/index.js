@@ -2,14 +2,15 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const socketIo = require("socket.io");
 const http = require("http");
+const { Server } = require("socket.io");
 
 const app = express();
 const PORT = 8000;
+const SOCKET_PORT = 8080;
 
 const server = http.createServer(app);
-const io = socketIo(8080, {
+const io = new Server(server, {
   cors: {
     origin: "http://localhost:3000", // The origin of your React app
     methods: ["GET", "POST"],
@@ -18,28 +19,38 @@ const io = socketIo(8080, {
   },
 });
 
+app.use(cors());
 app.use(express.static("public"));
 
-// Handle socket connections
+let users = 0;
+
+// Socket.io Logic
 io.on("connection", (socket) => {
   console.log("A user connected");
 
-  socket.on("join room", (data) => {
+  socket.on("join room", async (data) => {
     const { room, username } = data;
     console.log(`User ${username} joined room: ${room}`);
-    socket.join(room); // Ensure the user joins the specified room
+
+    socket.join(room);
+    users++;
+    console.log(`Total users in ${room}: ${users}`);
   });
 
   socket.on("chat message", (msg) => {
-    io.to(msg.room).emit("chat message", msg); // Emit message only to the current room
+    const { room, text, sender } = msg;
+    if (room) {
+      io.to(room).emit("chat message", { sender, text }); // Emit message only to the specified room
+    }
   });
 
   socket.on("create room", (newRoom, creator) => {
-    if (!io.sockets.adapter.rooms[newRoom]) {
-      io.sockets.adapter.rooms[newRoom] = { users: {} };
-      socket.emit("room created", newRoom);
+    const rooms = Array.from(io.sockets.adapter.rooms.keys());
+
+    if (!rooms.includes(newRoom)) {
       socket.join(newRoom);
-      io.emit("rooms list", Object.keys(io.sockets.adapter.rooms));
+      socket.emit("room created", newRoom);
+      io.emit("rooms list", rooms.concat(newRoom));
     } else {
       socket.emit("room exists", newRoom);
     }
@@ -47,19 +58,16 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("A user disconnected");
+    users--;
   });
 });
 
-//////////////////////////////
-
+// MongoDB Connection
 mongoose
-  .connect(
-    "mongodb+srv://anwarfarhan339:7btRGnUp8Vn0UiQA@cluster0.wqknr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
-    { useNewUrlParser: true, useUnifiedTopology: true }
-  )
+  .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("MongoDB connected"))
   .catch((err) => console.log(err));
 
-app.listen(PORT, () => {
-  console.log("Server Listening on Port 8000");
-});
+// Start the servers
+app.listen(PORT, () => console.log(`API Server Listening on Port ${PORT}`));
+server.listen(SOCKET_PORT, () => console.log(`Socket.io Listening on Port ${SOCKET_PORT}`));
