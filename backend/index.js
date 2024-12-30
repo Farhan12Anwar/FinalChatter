@@ -25,24 +25,24 @@ io.on("connection", (socket) => {
   console.log("A user connected");
 
   socket.on("join room", (data) => {
-    const { room, username } = data; // Destructure room and username
-    console.log(`User ${username} joined room: ${room}`); // Debugging log
-    socket.join(room); // Ensure user joins the correct room
+    const { room, username } = data;
+    console.log(`User ${username} joined room: ${room}`);
+    socket.join(room); // Ensure the user joins the specified room
+  });
+
+  socket.on("chat message", (msg) => {
+    io.to(msg.room).emit("chat message", msg); // Emit message only to the current room
   });
 
   socket.on("create room", (newRoom, creator) => {
     if (!io.sockets.adapter.rooms[newRoom]) {
-      io.sockets.adapter.rooms[newRoom] = { users: {} }; // Create the room
-      socket.emit("room created", newRoom); // Notify the creator
-      socket.join(newRoom); // Add the creator to the room
-      io.emit("rooms list", Object.keys(io.sockets.adapter.rooms)); // Emit available rooms to everyone
+      io.sockets.adapter.rooms[newRoom] = { users: {} };
+      socket.emit("room created", newRoom);
+      socket.join(newRoom);
+      io.emit("rooms list", Object.keys(io.sockets.adapter.rooms));
     } else {
-      socket.emit("room exists", newRoom); // Notify if room already exists
+      socket.emit("room exists", newRoom);
     }
-  });
-
-  socket.on("chat message", (msg) => {
-    io.to(msg.room).emit("chat message", msg); // Broadcast messages to the room
   });
 
   socket.on("disconnect", () => {

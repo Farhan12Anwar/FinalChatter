@@ -91,22 +91,7 @@ const Global = () => {
     <div className="App">
       <Header />
       <h1>Global Chat</h1>
-
-      <div id="rooms-list">
-        <h2>Available Rooms:</h2>
-        <ul>
-          {rooms.map((room, index) => (
-            <li
-              key={index}
-              className={room === currentRoom ? "active-room" : ""}
-              onClick={() => setCurrentRoom(room)} // Allow switching rooms by clicking
-            >
-              {room}
-            </li>
-          ))}
-        </ul>
-      </div>
-
+      <h1>Current Room: {currentRoom}</h1>
       <div id="chat-window">
         <ul id="messages">
           {messages.map((msg, index) => (
